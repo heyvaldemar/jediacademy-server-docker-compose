@@ -51,7 +51,7 @@ Everything else — the server name, the game type, the bot count, the rotation 
 
 ## Updating
 
-The pin lives in the `x-images` block at the top of the compose file, as an interpolation default, so a `git pull` delivers the image this repository has tested. The server inside is Raven's 2009 dedicated build plus JA+; neither is going to change, so the pin will move rarely, and the daily freshness check says when.
+The pin lives in the `x-images` block at the top of the compose file, as an interpolation default, so a `git pull` delivers the image this repository has tested. The server inside is Raven's 2009 dedicated build plus JA+; neither is going to change, so the pin will move rarely, and the daily freshness check says when. `./update.sh` does that on purpose: it moves to the latest release tag, refuses to cross a major unattended, and names any new required variable before anything has moved.
 
 ## Testing
 

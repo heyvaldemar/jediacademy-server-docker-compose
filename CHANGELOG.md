@@ -9,15 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _(no unreleased changes yet)_
 
-## [1.0.0] - 2026-09-07
+## [1.1.0] - 2026-09-07
 
 ### Added
 
-- **A Jedi Academy FFA server with JA+**, image pinned by digest as an
-  interpolation default, so `git pull` delivers the build this repository has
-  tested and `.env` overrides survive it.
-- **The rcon password rendered into the config at start, never kept in it.**
-  idTech3 reads it from `server.cfg` and nowhere else, and that file is
+- **`update.sh`: move between release tags on purpose.** It updates to the latest release (a combination this repository's CI has booted and smoke-tested), refuses to cross a major version unattended, refuses to run over local changes, and names any new required variable before anything has moved. `--dry-run` says what would happen.
+
+where else, and that file is
   tracked; the shipped copy holds a placeholder that the compose command fills
   from `.env` on the way in. CI checks that the placeholder is still there and
   that the render works. The config this descends from once carried a real
@@ -37,5 +35,6 @@ _(no unreleased changes yet)_
   the pinned image, a daily freshness check on the pin, the health-check
   suite, the refusal-without-assets proof and the render proof.
 
-[Unreleased]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/releases/tag/v1.0.0
