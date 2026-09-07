@@ -1,0 +1,86 @@
+# Image pin lives HERE, as an interpolation default, so `git pull` (or
+# re-downloading this file) delivers the exact image this repository has
+# tested. Set JKA_SERVER_IMAGE_VERSION in .env to run a different tag while
+# the digest for it is fetched normally, or JKA_SERVER_IMAGE_TAG to replace
+# the whole reference. CI (the Trivy scan and check-pin-freshness) reads the
+# pin from this line: this block is the single source of truth.
+#
+# The tag is `latest` because it is the only one this image publishes. The
+# server inside is Raven's 2009 dedicated build plus JA+, neither of which is
+# going to change; the digest is the version, and the daily freshness check is
+# what notices a rebuild.
+x-images:
+  jka-server: &jka-server-image ${JKA_SERVER_IMAGE_TAG:-tiffi/jka-japlus:${JKA_SERVER_IMAGE_VERSION:-latest@sha256:82b60d8eed0d8e4b4a8c6a3d015591f3f46760d9d3d6e984ce08d8466073b6d0}}
+
+services:
+  jka-server:
+    image: *jka-server-image
+    # Handles untrusted input from the internet and cannot gain privileges
+    # through a setuid binary.
+    security_opt:
+      - no-new-privileges:true
+    # 3g is measured, not guessed. The server itself is resident at 51 MB; the
+    # 2.4 GB peak the machine this template comes from recorded was the pk3
+    # files in the page cache, which is reclaimed under a limit rather than
+    # OOM-killed. The ceiling is there so a leak here cannot pick a victim
+    # elsewhere.
+    deploy:
+      resources:
+        limits:
+          memory: ${JKA_SERVER_MEMORY_LIMIT:-3g}
+          cpus: "${JKA_SERVER_CPU_LIMIT:-1.0}"
+        reservations:
+          memory: ${JKA_SERVER_MEMORY_RESERVATION:-128m}
+          cpus: "${JKA_SERVER_CPU_RESERVATION:-0.25}"
+    ports:
+      # idTech3: one UDP port for game, query and rcon. Published under the
+      # same number it binds, so the address players add to their favourites
+      # is the address the server answers on.
+      - "${JKA_SERVER_PORT:-29070}:${JKA_SERVER_PORT:-29070}/udp"
+    environment:
+      JKA_SERVER_RCON_PASSWORD: ${JKA_SERVER_RCON_PASSWORD:?set in .env - see .env.example for generation command}
+      JKA_SERVER_PORT: ${JKA_SERVER_PORT:-29070}
+    # THE RCON PASSWORD IS RENDERED INTO server.cfg AT START, NOT KEPT IN IT.
+    # idTech3 reads rconpassword from the config and nowhere else, and the
+    # config is a tracked file. So cfg/server.cfg is mounted as a template
+    # with a placeholder, the value from .env is substituted into the copy the
+    # image's own start script picks up, and the tracked file never carries a
+    # secret. Then the image's start script runs exactly as shipped.
+    command:
+      - /bin/bash
+      - -c
+      - |
+        sed -e "s|__JKA_SERVER_RCON_PASSWORD__|$${JKA_SERVER_RCON_PASSWORD}|" \
+            -e "s|__JKA_SERVER_PORT__|$${JKA_SERVER_PORT}|" \
+            /ja/japluscfg/server.cfg.template > /ja/japluscfg/server.cfg
+        exec ./start_server.sh
+    volumes:
+      # THE GAME FILES ARE YOURS TO SUPPLY. assets0.pk3 through assets3.pk3 from
+      # an owned copy of Jedi Academy (Steam: .../Jedi Academy/GameData/base/).
+      # The image cannot ship them, and without them its start script exits —
+      # by design, and CI proves it does. Any other .pk3 dropped here (maps,
+      # skins) is copied in beside them.
+      - ./assets:/ja/assets
+      - ./cfg/server.cfg:/ja/japluscfg/server.cfg.template:ro
+    healthcheck:
+      # NO pgrep FALLBACK. This check used to end in `|| pgrep -f jampded`, and
+      # that second branch could only ever return success: `pgrep -f` searches
+      # whole command lines, and the shell running the check carries the
+      # pattern in its own. Measured in this container — `pgrep -f
+      # ZZZ_no_such_process` exits 0. So the branch reached only when the game
+      # was gone was the branch that always passed. The comm of the running
+      # server is exactly `linuxjampded` and the wrapper's is `start_server.sh`,
+      # so one exact match is enough. tests/e2e-healthcheck.sh proves it.
+      test: ["CMD-SHELL", "grep -qsx linuxjampded /proc/[0-9]*/comm"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      # Copying the assets into base/ and loading the first map: a minute.
+      start_period: ${JKA_SERVER_START_PERIOD:-60s}
+    stop_grace_period: ${JKA_SERVER_STOP_GRACE_PERIOD:-15s}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: ${JKA_SERVER_LOG_MAX_SIZE:-10m}
+        max-file: "${JKA_SERVER_LOG_MAX_FILE:-3}"
