@@ -38,6 +38,12 @@ services:
       # is the address the server answers on.
       - "${JKA_SERVER_PORT:-29070}:${JKA_SERVER_PORT:-29070}/udp"
     environment:
+      # THE GAME GETS THE HOUSEHOLD CLOCK TOO, not only whatever sidecar
+      # sits beside it. Every timestamp this server writes — bans, joins,
+      # the crash it leaves behind — is read next to a log line from
+      # somewhere else, and two clocks make that arithmetic. UTC by
+      # default, which is a choice rather than an accident.
+      TZ: ${JKA_SERVER_TIMEZONE:-UTC}
       JKA_SERVER_RCON_PASSWORD: ${JKA_SERVER_RCON_PASSWORD:?set in .env - see .env.example for generation command}
       JKA_SERVER_PORT: ${JKA_SERVER_PORT:-29070}
     # THE RCON PASSWORD IS RENDERED INTO server.cfg AT START, NOT KEPT IN IT.
