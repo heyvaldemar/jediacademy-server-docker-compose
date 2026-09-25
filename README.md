@@ -1,6 +1,7 @@
 # Jedi Academy server using Docker Compose
 
 [![Deployment Verification](https://github.com/heyvaldemar/jediacademy-server-docker-compose/actions/workflows/deployment-verification.yml/badge.svg?branch=main)](https://github.com/heyvaldemar/jediacademy-server-docker-compose/actions/workflows/deployment-verification.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14893/badge)](https://www.bestpractices.dev/projects/14893)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Jedi Knight: Jedi Academy free-for-all server with the JA+ mod, pinned by digest, bots filling the room, and a health check that stopped lying.
