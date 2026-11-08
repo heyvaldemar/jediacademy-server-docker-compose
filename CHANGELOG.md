@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.2.1] - 2026-11-08
+
 ### Security
 
 - **The RCON password is no longer on a command line.** The start command rendered `server.cfg` with `sed "s|__JKA_SERVER_RCON_PASSWORD__|<password>|"`, putting the password in `sed`'s arguments, which every user on the host reads with `ps`. Bash now does the substitution itself (`$(<file)`, `${cfg//…/"$password"}`, `printf`), so no other process sees it, and with the replacement quoted, `&`, `|` and `\` in a password stay literal instead of breaking the expression. The rendered file is mode 600. CI used to check the rendering with its own copy of the `sed` line; it now runs the compose file's own command with a random password and compares the config it leaves behind through a file, so the value is never printed.
@@ -52,7 +56,8 @@ where else, and that file is
   the pinned image, a daily freshness check on the pin, the health-check
   suite, the refusal-without-assets proof and the render proof.
 
-[Unreleased]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/releases/tag/v1.0.0
