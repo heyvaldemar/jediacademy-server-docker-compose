@@ -105,17 +105,24 @@ jobs:
         # Pinned, and the same image a maintainer runs locally: Ubuntu's
         # packaged shellcheck is a different version with different defaults.
         run: |
-          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.11.0 tests/e2e-healthcheck.sh
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.11.0 tests/e2e-healthcheck.sh tests/rcon.sh tools/healthcheck.sh tools/rcon.sh
 
-      - name: Prove the exact match catches what a substring match misses
-        # Assertions against a real container, with no game download: two
-        # processes named cs2 and cs2.sh are the whole fixture. The game is
-        # killed and the exact check must go red while the substring check
-        # stays green - if the substring form ever failed too, the comment in
-        # the compose file would be wrong and the run says so.
+      - name: The health check goes by the game's answer, in the pinned image
+        # tools/healthcheck.sh is healthy only on the engine's statusResponse
+        # to getstatus. Run in the pinned image, so its tools are proven there,
+        # against a stand-in that answers, stays silent, or is not there at all
+        # (tests/fixtures/fake-getstatus.py). There is no real server in this
+        # CI: the game's assets cannot be redistributed.
         run: |
           chmod +x tests/e2e-healthcheck.sh
           ./tests/e2e-healthcheck.sh
+
+      - name: tools/rcon.sh talks idTech3 rcon, with the password on no command line
+        # Against the same stand-in: the status table for the password, a
+        # wrong one refused, silence ended, and while a reply is late no
+        # command line on the runner or in the test's containers carries the
+        # password, with a control that does.
+        run: bash tests/rcon.sh
 
       - name: The compose file parses with the shipped defaults
         run: |

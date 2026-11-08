@@ -18,7 +18,7 @@ The image cannot ship the game: `assets0.pk3` through `assets3.pk3` belong to wh
 
 ```bash
 docker compose -p jka logs -f jka-server
-docker compose -p jka ps          # healthy once linuxjampded is up
+docker compose -p jka ps          # healthy once the server answers getstatus
 ```
 
 Players add `your-address:29070` to their favourites. The original master server is gone, so the in-game browser will not find you.
@@ -27,7 +27,7 @@ Players add `your-address:29070` to their favourites. The original master server
 
 **The rcon password is rendered into the config at start and never kept in it.** idTech3 reads `rconpassword` from `server.cfg` and nowhere else, and `server.cfg` is a tracked file. The one shipped here holds a placeholder; the command in the compose file substitutes the value from `.env` into the copy the image's own start script picks up, then runs that script exactly as shipped. CI checks both halves: that the tracked file still has the placeholder, and that the render produces the value. This exists because the config this template descends from once carried a real password, and it left the machine before anyone noticed.
 
-**The health check has no `pgrep -f` fallback.** It used to end in `|| pgrep -f jampded`, and that branch could only ever succeed: `pgrep -f` searches whole command lines, and the shell running the check carries the pattern in its own. Measured in this container, `pgrep -f ZZZ_no_such_process` exits 0. So the branch reached only when the game was gone was the branch that always passed. The comm of the running server is exactly `linuxjampded`; the wrapper's is `start_server.sh`; one exact match is enough. `tests/e2e-healthcheck.sh` proves it against a real container, including that the `pgrep -f` form stays green with the game dead.
+**The health check asks the server, not its process.** `tools/healthcheck.sh`, mounted read-only, sends getstatus, idTech3's status query that every server browser sends, to the game port and is healthy only on the engine's statusResponse. Up to v1.2.1 it looked for `linuxjampded` in `/proc`: exactly, because an earlier `|| pgrep -f jampded` fallback matched the shell running the check and could only succeed. But a hung or stopped server keeps its process, and this 32-bit server is the kind Docker Engine 29.4.2 leaves running with no socket. A map change silences it for a moment; one check tries twice, and Docker allows three misses at a 60-second interval. Each check ends within 7 seconds. **It is not proven on a real server in CI**, and cannot be in a public one: the game's assets are not the repository's to redistribute. `tests/e2e-healthcheck.sh` runs it in the pinned image against a stand-in that speaks getstatus. **It asks from inside the container**: healthy proves the server answers there, not that the port is published on the host or open in your firewall.
 
 **The memory ceiling is measured, not guessed.** The server is resident at 51 MB. The 2.4 GB once recorded as its peak was the pk3 files in the page cache, which a limit reclaims rather than kills. 3 GB leaves that room and still bounds it.
 
@@ -39,14 +39,14 @@ If you run this at home and want nothing listening on your router, put the game 
 
 ## Administration
 
-rcon in idTech3 is a UDP packet, not a TCP session; any Quake 3 rcon tool works. From inside the container's namespace, with the password from `.env`:
+rcon in idTech3 is one UDP packet, not a TCP session. `tools/rcon.sh` sends it from a pinned python image in the server's network namespace, with the password from `.env` on stdin, so it is on no command line:
 
 ```bash
-docker run --rm --network "container:$(docker compose -p jka ps -q jka-server)" python:3.13-alpine \
-  python3 -c 'import socket,os; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.settimeout(5)
-s.sendto(b"\xff\xff\xff\xffrcon "+os.environ["PW"].encode()+b" status", ("127.0.0.1",29070)); print(s.recv(4096).decode(errors="replace"))' \
-  -e PW="$(grep ^JKA_SERVER_RCON_PASSWORD= .env | cut -d= -f2-)"
+tools/rcon.sh status
+tools/rcon.sh map mp/ffa3
 ```
+
+Up to v1.2.1 this section gave a `docker run ... -e PW=<the password>` command. It put the password in the docker CLI's arguments, where every user on the host reads it with `ps`, and it put `-e` after the image name, where docker hands it to the program as an argument: the command could not work. `tests/rcon.sh` checks the tool against a stand-in, and that no command line carries the password while a reply is late.
 
 Everything else — the server name, the game type, the bot count, the rotation — is in `cfg/server.cfg`. Edit and `docker compose -p jka restart jka-server`.
 
@@ -56,9 +56,9 @@ The pin lives in the `x-images` block at the top of the compose file, as an inte
 
 ## Testing
 
-CI starts the real image with an empty `assets/` directory and asserts that it refuses — the start script's own message must be in the log, and the container must never reach healthy. It renders the rcon placeholder from a placeholder `.env` and checks the result, and checks that the tracked config never carries a rendered value. `tests/e2e-healthcheck.sh` runs the health check in both directions against a fixture with no game download. All of it on every push, alongside shell and workflow linting, a Trivy scan of the pinned image, and a daily check that the pin still resolves to what upstream publishes.
+CI starts the real image with an empty `assets/` directory and asserts that it refuses — the start script's own message must be in the log, and the container must never reach healthy. It renders the rcon placeholder from a placeholder `.env` and checks the result, and checks that the tracked config never carries a rendered value. `tests/e2e-healthcheck.sh` runs the health check in the pinned image against a stand-in that answers getstatus, stays silent, or is not there: healthy, unhealthy within 7 seconds, unhealthy. `tests/rcon.sh` runs `tools/rcon.sh` against the same stand-in. All of it on every push, alongside shell and workflow linting, a Trivy scan of the pinned image, and a daily check that the pin still resolves to what upstream publishes.
 
-CI does not play the game. That needs the pk3 files, and they are not the repository's to have.
+CI does not play the game, and so does not prove the health check or rcon against a real server. That needs the pk3 files, and they are not the repository's to have.
 
 ---
 

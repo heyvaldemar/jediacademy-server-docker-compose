@@ -76,16 +76,23 @@ services:
       # skins) is copied in beside them.
       - ./assets:/ja/assets
       - ./cfg/server.cfg:/ja/japluscfg/server.cfg.template:ro
+      # The health check: getstatus to the game port (see healthcheck: below).
+      - ./tools/healthcheck.sh:/healthcheck.sh:ro
     healthcheck:
-      # NO pgrep FALLBACK. This check used to end in `|| pgrep -f jampded`, and
-      # that second branch could only ever return success: `pgrep -f` searches
-      # whole command lines, and the shell running the check carries the
-      # pattern in its own. Measured in this container — `pgrep -f
-      # ZZZ_no_such_process` exits 0. So the branch reached only when the game
-      # was gone was the branch that always passed. The comm of the running
-      # server is exactly `linuxjampded` and the wrapper's is `start_server.sh`,
-      # so one exact match is enough. tests/e2e-healthcheck.sh proves it.
-      test: ["CMD-SHELL", "grep -qsx linuxjampded /proc/[0-9]*/comm"]
+      # THE GAME'S OWN ANSWER, NOT ITS PROCESS. tools/healthcheck.sh sends
+      # getstatus, idTech3's status query every server browser sends, to the
+      # game port and is healthy only on the engine's statusResponse. Up to
+      # v1.2.1 this looked for linuxjampded in /proc (exactly: an earlier
+      # pgrep -f fallback matched its own shell and always passed), and a hung
+      # or stopped server keeps its process; this 32-bit server is also the
+      # kind Docker Engine 29.4.2 leaves running with no socket. A map change
+      # silences it for a moment; the check tries twice and Docker allows
+      # three misses at this interval. Each check ends within 7 seconds.
+      # NOT PROVEN ON A REAL SERVER IN CI: the game's assets cannot be
+      # redistributed, so tests/e2e-healthcheck.sh runs it in the pinned image
+      # against a stand-in. It asks from inside the container: it does not
+      # prove the port is published on the host or open in a firewall.
+      test: ["CMD", "bash", "/healthcheck.sh", "${JKA_SERVER_PORT:-29070}"]
       interval: 60s
       timeout: 10s
       retries: 3

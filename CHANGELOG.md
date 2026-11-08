@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Security
+
+- **The README's rcon command put the password on a command line, and could not work.** It passed it as `docker run ... -e PW=<the password>`, in the docker CLI's arguments, where every user on the host reads it with `ps`, and after the image name, where docker hands `-e` to the program as an argument. `tools/rcon.sh` replaces it: the password from `.env` on stdin into a pinned python image in the server's namespace. `tests/rcon.sh` checks it against a stand-in (status, a wrong password, silence) and that no command line carries the password while a reply is late, with a control that does.
+
+### Changed
+
+- **The health check asks the server, not its process.** It looked for `linuxjampded` in `/proc`, which a hung or stopped server keeps. `tools/healthcheck.sh`, mounted read-only, now sends getstatus to the game port and is healthy only on the engine's statusResponse (two tries, within 7 seconds). It is not proven on a real server in CI, which cannot have the game's assets; `tests/e2e-healthcheck.sh` runs it in the pinned image against a stand-in. It asks from inside the container, so it does not prove the port is published on the host or open in a firewall; the README says both.
 
 ## [1.2.1] - 2026-11-08
 
