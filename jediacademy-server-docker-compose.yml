@@ -52,13 +52,21 @@ services:
     # with a placeholder, the value from .env is substituted into the copy the
     # image's own start script picks up, and the tracked file never carries a
     # secret. Then the image's start script runs exactly as shipped.
+    # BY BASH ITSELF, NOT sed: `sed "s|...|<password>|"` put the password in
+    # sed's arguments, which every user on the host reads with ps. $(<file),
+    # ${var//pattern/"value"} and printf are bash's own, so no other process
+    # ever sees it, and the quoted replacement keeps & in a password literal.
+    # The rendered file is the server's user's alone (mode 600).
     command:
       - /bin/bash
       - -c
       - |
-        sed -e "s|__JKA_SERVER_RCON_PASSWORD__|$${JKA_SERVER_RCON_PASSWORD}|" \
-            -e "s|__JKA_SERVER_PORT__|$${JKA_SERVER_PORT}|" \
-            /ja/japluscfg/server.cfg.template > /ja/japluscfg/server.cfg
+        umask 077
+        cfg="$$(< /ja/japluscfg/server.cfg.template)"
+        cfg="$${cfg//__JKA_SERVER_RCON_PASSWORD__/"$$JKA_SERVER_RCON_PASSWORD"}"
+        cfg="$${cfg//__JKA_SERVER_PORT__/"$$JKA_SERVER_PORT"}"
+        printf '%s\n' "$$cfg" > /ja/japluscfg/server.cfg
+        chmod 600 /ja/japluscfg/server.cfg
         exec ./start_server.sh
     volumes:
       # THE GAME FILES ARE YOURS TO SUPPLY. assets0.pk3 through assets3.pk3 from

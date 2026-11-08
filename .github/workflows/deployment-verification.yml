@@ -137,13 +137,26 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: The rcon password is rendered from .env, and the tracked file never carries it
+        # The compose file's own command renders the config (then the image's
+        # start script exits: no game files here). The config it left behind
+        # must carry the password, mode 600; the tracked file must not. A
+        # random password, compared through files, so it is never printed.
         run: |
           sed -E 's/^([A-Z0-9_]+)=$/\1=ci-placeholder/' .env.example > .env
+          sed -i "s/^JKA_SERVER_RCON_PASSWORD=.*/JKA_SERVER_RCON_PASSWORD=$(openssl rand -hex 16)/" .env
+          pw="$(mktemp)"; expect="$(mktemp)"; chmod 600 "$pw" "$expect"
+          sed -n 's/^JKA_SERVER_RCON_PASSWORD=//p' .env > "$pw"
+          printf 'seta rconpassword "%s"\n' "$(cat "$pw")" > "$expect"
           grep -q '__JKA_SERVER_RCON_PASSWORD__' cfg/server.cfg
-          if grep -q 'ci-placeholder' cfg/server.cfg; then echo '::error::the tracked config carries a rendered value'; exit 1; fi
-          docker compose -f jediacademy-server-docker-compose.yml -p jka run --rm --no-deps --entrypoint /bin/bash jka-server -c \
-            'sed -e "s|__JKA_SERVER_RCON_PASSWORD__|$JKA_SERVER_RCON_PASSWORD|" /ja/japluscfg/server.cfg.template | grep -q "rconpassword \"ci-placeholder\""' \
-            && echo "rendered from the environment, as designed"
+          if grep -qF -f "$pw" cfg/server.cfg; then echo '::error::the tracked config carries a rendered value'; exit 1; fi
+          docker compose -f jediacademy-server-docker-compose.yml -p jka run --no-deps --name jka-render jka-server > /dev/null 2>&1 || true
+          docker cp jka-render:/ja/japluscfg/server.cfg "$RUNNER_TEMP/rendered.cfg"
+          docker rm -f jka-render > /dev/null
+          grep -qxF -f "$expect" "$RUNNER_TEMP/rendered.cfg" || { echo "::error::the rendered config does not carry the rcon password"; exit 1; }
+          if grep -q '__JKA_SERVER_' "$RUNNER_TEMP/rendered.cfg"; then echo '::error::a placeholder was left in the rendered config'; exit 1; fi
+          mode="$(stat -c %a "$RUNNER_TEMP/rendered.cfg")"
+          [ "$mode" = 600 ] || { echo "::error::the rendered config is mode $mode, not 600"; exit 1; }
+          echo "rendered from the environment by the compose file's own command, mode 600"
 
       - name: Start with an empty assets directory
         run: |
