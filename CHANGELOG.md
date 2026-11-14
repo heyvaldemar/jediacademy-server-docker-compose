@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.3.2] - 2026-11-14
+
 ### Fixed
 
 - **A stop no longer waits out the grace period.** The compose file's command ends in `exec ./start_server.sh`, the image's bash script, which has no handler for SIGTERM, and as process 1 it ignored Docker's stop: every stop and restart waited 15 seconds and ended in Docker's SIGKILL. Docker's init (tini) is process 1 now, with `TINI_KILL_PROCESS_GROUP`, so SIGTERM reaches the start script, the image's restart loop and the server together. CI measures it with stand-in game files and fails a stop that is not ended by SIGTERM: 0 seconds of 15, exit 143 ([run 43622997760](https://github.com/heyvaldemar/jediacademy-server-docker-compose/actions/runs/43622997760)). The game keeps no world on disk, so nothing was lost, only the wait.
@@ -79,7 +83,8 @@ where else, and that file is
   the pinned image, a daily freshness check on the pin, the health-check
   suite, the refusal-without-assets proof and the render proof.
 
-[Unreleased]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.2.0...v1.2.1
