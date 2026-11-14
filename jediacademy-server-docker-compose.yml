@@ -15,6 +15,14 @@ x-images:
 services:
   jka-server:
     image: *jka-server-image
+    # A STOP REACHES THE GAME. The command below ends in exec
+    # ./start_server.sh, a bash script with no handler for SIGTERM, which made
+    # it process 1, and process 1 ignores a signal it has no handler for:
+    # every stop and restart waited out the grace period and ended in
+    # Docker's SIGKILL. Docker's init (tini) is process 1 now, and with
+    # TINI_KILL_PROCESS_GROUP below it hands SIGTERM to the start script, the
+    # image's restart loop and the server together.
+    init: true
     # Handles untrusted input from the internet and cannot gain privileges
     # through a setuid binary.
     security_opt:
@@ -38,6 +46,8 @@ services:
       # is the address the server answers on.
       - "${JKA_SERVER_PORT:-29070}:${JKA_SERVER_PORT:-29070}/udp"
     environment:
+      # tini (init: true) signals the whole process group.
+      TINI_KILL_PROCESS_GROUP: "1"
       # THE GAME GETS THE HOUSEHOLD CLOCK TOO, not only whatever sidecar
       # sits beside it. Every timestamp this server writes — bans, joins,
       # the crash it leaves behind — is read next to a log line from

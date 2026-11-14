@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Fixed
+
+- **A stop no longer waits out the grace period.** The compose file's command ends in `exec ./start_server.sh`, the image's bash script, which has no handler for SIGTERM, and as process 1 it ignored Docker's stop: every stop and restart waited 15 seconds and ended in Docker's SIGKILL. Docker's init (tini) is process 1 now, with `TINI_KILL_PROCESS_GROUP`, so SIGTERM reaches the start script, the image's restart loop and the server together. CI measures it with stand-in game files and fails a stop that is not ended by SIGTERM: 0 seconds of 15, exit 143 ([run 43622997760](https://github.com/heyvaldemar/jediacademy-server-docker-compose/actions/runs/43622997760)). The game keeps no world on disk, so nothing was lost, only the wait.
+- **The secret probe's excerpt of a leaked line replaces Steam IDs and addresses too**, and its selftest reaches the log through any process that shares process 1's output.
 
 ## [1.3.1] - 2026-11-14
 

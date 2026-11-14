@@ -33,7 +33,7 @@ Players add `your-address:29070` to their favourites. The original master server
 
 **A crash restarts the container, and nothing else says so.** The image's start script runs the server in the foreground and, when it exits, ends; Docker's restart policy starts the container again, and the health check answers green with the fresh one. Docker counts those restarts on the host: `docker inspect -f '{{.RestartCount}}' $(docker compose -p jka ps -q jka-server)`. A count that grows between two looks is a server that crashed in between; `docker restart` sets it back to 0. This template has no timer to watch it for you.
 
-**A stop waits out the grace period.** The image's start script is process 1, a bash script with no handler for SIGTERM, and runs the server in the foreground (read in the pinned image), so `docker compose stop` waits the 15-second grace period and then kills it. Not measured here: without the game files the server exits on its own every ten seconds, which would read as a quick stop. The game keeps no world on disk, so nothing is lost.
+**A stop reaches the game.** The image's start script is a bash script with no handler for SIGTERM, and as process 1 it ignored Docker's stop: every stop and restart waited the 15-second grace period and was killed (read in the pinned image). Docker's init is process 1 now and hands SIGTERM to the start script and the server together: measured with stand-in game files, the stop ends by that signal, exit 143, in a second or two (`tests/clean-stop.sh`). The game keeps no world on disk, so nothing was lost, only the wait.
 
 **The port is published under the number it binds**, because the address in a player's favourites is the address the server has to answer on.
 
