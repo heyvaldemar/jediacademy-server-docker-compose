@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.3.1] - 2026-11-14
+
 ### Added
 
 - **CI looks for the rcon password on the path it takes at start.** The game files are not redistributable, so the real server never runs in CI. With four empty stand-in `assets*.pk3`, which the image's start script accepts and the server cannot load, the start runs as it would for real: the compose file's command renders the password into `server.cfg`, the start script copies it, the server is started with `+exec server.cfg`, exits, and the image's loop starts it again. `tests/secret-probe.sh` gives the password a value of its own, samples every command line in the container and on the host for 40 seconds of that loop, then reads `docker compose logs` and the command lines again; it names the place, never the value. It found nothing ([run 43621157391](https://github.com/heyvaldemar/jediacademy-server-docker-compose/actions/runs/43621157391)). The CI step that wrote the password into `.env` no longer has it on `sed`'s command line.
@@ -72,7 +76,8 @@ where else, and that file is
   the pinned image, a daily freshness check on the pin, the health-check
   suite, the refusal-without-assets proof and the render proof.
 
-[Unreleased]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/heyvaldemar/jediacademy-server-docker-compose/compare/v1.1.0...v1.2.0
