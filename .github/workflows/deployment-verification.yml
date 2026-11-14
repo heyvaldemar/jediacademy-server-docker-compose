@@ -222,10 +222,22 @@ jobs:
           docker logs "$cid" 2>&1 | grep -m1 'All assets\*.pk3 files found' || { echo "::error::the stand-in game files were not taken"; docker logs --tail 20 "$cid"; exit 1; }
           tests/secret-probe.sh during "the start loop, with stand-in game files" sleep 40
           running() { [ "$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null)" = true ]; }
-          for _ in $(seq 1 30); do running && break; sleep 1; done
-          tests/secret-probe.sh check "with stand-in game files"
-          for _ in $(seq 1 30); do running && break; sleep 1; done
-          tests/secret-probe.sh selftest
+          # The container lives about ten seconds per round of the loop, so
+          # a look can land on it going down. Only that is retried, while it
+          # is up again: a value found anywhere fails at once.
+          up_probe() {
+            local out
+            for _ in $(seq 1 6); do
+              for _ in $(seq 1 30); do running && break; sleep 1; done
+              out="$(tests/secret-probe.sh "$@" 2>&1)" && { echo "$out"; return 0; }
+              grep -q -E 'cannot read the processes|nothing is running|nothing read from' <<<"$out" || { echo "$out"; return 1; }
+              echo "(the container went down under the probe; looking again)"
+              sleep 2
+            done
+            echo "$out"; return 1
+          }
+          up_probe check "with stand-in game files"
+          up_probe selftest
 
       - name: A stop - timed, with its exit code (tests/clean-stop.sh; stand-in game files, no world)
         # Process 1 is the image's start script, the same as with the real
