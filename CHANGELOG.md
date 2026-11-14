@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CI looks for the rcon password on the path it takes at start.** The game files are not redistributable, so the real server never runs in CI. With four empty stand-in `assets*.pk3`, which the image's start script accepts and the server cannot load, the start runs as it would for real: the compose file's command renders the password into `server.cfg`, the start script copies it, the server is started with `+exec server.cfg`, exits, and the image's loop starts it again. `tests/secret-probe.sh` gives the password a value of its own, samples every command line in the container and on the host for 40 seconds of that loop, then reads `docker compose logs` and the command lines again; it names the place, never the value. It found nothing ([run 43621157391](https://github.com/heyvaldemar/jediacademy-server-docker-compose/actions/runs/43621157391)). The CI step that wrote the password into `.env` no longer has it on `sed`'s command line.
+- **The README says how to see a crash, and what a stop does.** A crash ends the container and Docker starts it again, with the health check green afterwards: `docker inspect -f '{{.RestartCount}}'` counts them, and this template has no timer to do it for you. The image's start script, process 1, has no handler for SIGTERM, so a stop waits out the 15-second grace period and is killed (read in the pinned image; not measurable without the game, whose stand-in exits on its own). The game keeps no world on disk.
+
 ### Fixed
 
 - **An index pushed again over the same build is no longer reported as drift.** The daily pin check compared each pin with the digest the tag's index has now and failed on any difference, so a publisher re-pushing the index over the very same images (a platform added, an attestation rewritten) turned it red for an image nobody rebuilt, and no pin would ever move to turn it green. It now also compares the linux/amd64 build under both digests, the one CI runs and proves: the same build passes with a notice naming both digests, a new build fails as drift exactly as before, and a build that cannot be read still fails.
