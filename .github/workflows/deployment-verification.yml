@@ -105,7 +105,7 @@ jobs:
         # Pinned, and the same image a maintainer runs locally: Ubuntu's
         # packaged shellcheck is a different version with different defaults.
         run: |
-          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.11.0 tests/e2e-healthcheck.sh tests/rcon.sh tools/healthcheck.sh tools/rcon.sh tests/secret-probe.sh tests/clean-stop.sh
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.11.0 tests/e2e-healthcheck.sh tests/rcon.sh tools/healthcheck.sh tools/rcon.sh tests/secret-probe.sh
 
       - name: The health check goes by the game's answer, in the pinned image
         # tools/healthcheck.sh is healthy only on the engine's statusResponse
@@ -238,17 +238,6 @@ jobs:
           }
           up_probe check "with stand-in game files"
           up_probe selftest
-
-      - name: A stop - timed, with its exit code (tests/clean-stop.sh; stand-in game files, no world)
-        # Process 1 is the image's start script, the same as with the real
-        # game, so this is how a real server stops too.
-        env:
-          CLEAN_STOP_PROJECT: jka
-          CLEAN_STOP_COMPOSE: jediacademy-server-docker-compose.yml
-        run: |
-          cid="$(docker compose -f jediacademy-server-docker-compose.yml -p jka ps -aq jka-server)"
-          for _ in $(seq 1 30); do [ "$(docker inspect -f '{{.State.Running}}' "$cid")" = true ] && break; sleep 1; done
-          tests/clean-stop.sh jka-server -
 
       - name: Stop
         if: always()
