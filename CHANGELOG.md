@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The secret probe's selftest makes its Steam IDs and addresses at run time, out of the ranges real accounts and hosts use**, so the file names none. Tests only.
+- **The probe's selftest on the stand-in start loop is retried when the container restarts under it.** The canary it holds on a command line in the container went with a round of the loop that ended under it, once (run 43624579301); that miss is now looked at again, and only when the container did restart. Tests only.
 
 ## [1.3.2] - 2026-11-14
 

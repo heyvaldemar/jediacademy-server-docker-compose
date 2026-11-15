@@ -224,13 +224,22 @@ jobs:
           running() { [ "$(docker inspect -f '{{.State.Running}}' "$cid" 2>/dev/null)" = true ]; }
           # The container lives about ten seconds per round of the loop, so
           # a look can land on it going down. Only that is retried, while it
-          # is up again: a value found anywhere fails at once.
+          # is up again: a value found anywhere fails at once. The selftest's
+          # canary is held on a command line in the container, and a round
+          # that ends under it takes the canary with it (run 43624579301: found
+          # in the logs and the host's ps, not in the container), so that miss
+          # is retried too, when the container did go down while it was held.
           up_probe() {
-            local out
+            local out started
             for _ in $(seq 1 6); do
               for _ in $(seq 1 30); do running && break; sleep 1; done
+              started="$(docker inspect -f '{{.State.StartedAt}}' "$cid" 2>/dev/null)"
               out="$(tests/secret-probe.sh "$@" 2>&1)" && { echo "$out"; return 0; }
-              grep -q -E 'cannot read the processes|nothing is running|nothing read from' <<<"$out" || { echo "$out"; return 1; }
+              if ! grep -q -E 'cannot read the processes|nothing is running|nothing read from' <<<"$out"; then
+                grep -q 'found in: compose-logs host-ps; expected' <<<"$out" \
+                  && [ "$(docker inspect -f '{{.State.StartedAt}}' "$cid" 2>/dev/null)" != "$started" ] \
+                  || { echo "$out"; return 1; }
+              fi
               echo "(the container went down under the probe; looking again)"
               sleep 2
             done
